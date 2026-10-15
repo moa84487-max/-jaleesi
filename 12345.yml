@@ -1,0 +1,33 @@
+name: Build JALEESI APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - uses: android-actions/setup-android@v3
+      - name: Unpack project
+        run: unzip -q project.zip -d app
+      - name: Install
+        working-directory: app
+        run: |
+          npm install
+          npx cap add android
+          VERSION_CODE=${{ github.run_number }} VERSION_NAME=1.0.${{ github.run_number }} node scripts/patch-android.js
+          npx cap sync android
+      - name: Build APK
+        working-directory: app/android
+        run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
+        env:
+          JALESI_KS_PASS: d28f8dacade20c42
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JALEESI-apk
+          path: app/android/app/build/outputs/apk/release/*.apk
